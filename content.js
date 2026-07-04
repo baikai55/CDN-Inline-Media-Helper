@@ -377,7 +377,7 @@ async function showOverlay(url, playlist = []) {
 
   const frame = document.createElement("iframe");
   frame.allow = "autoplay; fullscreen";
-  frame.title = "Twitter/X video player";
+  frame.title = "CDN inline media player";
 
   const prev = document.createElement("button");
   prev.type = "button";

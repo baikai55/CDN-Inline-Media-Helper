@@ -366,7 +366,7 @@ function setupContextMenu() {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: "open-twimg-inline",
-      title: "在线播放 Twitter/X 视频",
+      title: "内联播放媒体",
       contexts: ["link", "image", "video", "selection", "page"]
     });
   });

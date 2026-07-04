@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Twitter/X CDN Inline Video",
-  "version": "2.0.4",
-  "description": "Play video.twimg.com video links inline with header rewriting, a context menu, and an extension video player.",
+  "name": "CDN Inline Media Helper",
+  "version": "2.0.5",
+  "description": "Play supported CDN media links inline with header rewriting, a context menu, and an extension video player.",
   "permissions": [
     "contextMenus",
     "declarativeNetRequest",
@@ -29,7 +29,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Twitter/X CDN Inline Video"
+    "default_title": "CDN Inline Media Helper"
   },
   "options_page": "options.html",
   "content_scripts": [
