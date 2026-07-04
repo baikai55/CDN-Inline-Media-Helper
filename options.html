@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Twitter/X CDN Inline Video Settings</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Twitter/X CDN Inline Video</p>
+          <h1>站点支持</h1>
+          <p class="hero-copy">管理可以拦截并内联播放 Twitter/X CDN 视频链接的网站。</p>
+        </div>
+        <div class="hero-badge" aria-label="Extension enabled">
+          <span class="pulse"></span>
+          已启用
+        </div>
+      </header>
+
+      <section class="panel add-panel" aria-labelledby="addTitle">
+        <div class="panel-heading">
+          <div>
+            <h2 id="addTitle">添加站点</h2>
+            <p>输入域名后，扩展会申请该站点权限并自动同步规则。</p>
+          </div>
+        </div>
+
+        <form id="addForm" class="form">
+          <label for="siteInput">站点域名</label>
+          <div class="row">
+            <input id="siteInput" name="site" type="text" spellcheck="false" placeholder="example.com" autocomplete="off">
+            <button type="submit">添加</button>
+          </div>
+        </form>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="grid">
+        <section class="panel" aria-labelledby="defaultTitle">
+          <div class="panel-heading">
+            <div>
+              <h2 id="defaultTitle">内置站点</h2>
+              <p>安装后默认支持。</p>
+            </div>
+          </div>
+          <ul id="defaultSites" class="site-list"></ul>
+        </section>
+
+        <section class="panel" aria-labelledby="customTitle">
+          <div class="panel-heading">
+            <div>
+              <h2 id="customTitle">自定义站点</h2>
+              <p>你添加并授权的网站。</p>
+            </div>
+          </div>
+          <ul id="customSites" class="site-list"></ul>
+        </section>
+      </section>
+    </main>
+
+    <script src="options.js"></script>
+  </body>
+</html>

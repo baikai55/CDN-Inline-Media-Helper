@@ -1,0 +1,76 @@
+{
+  "manifest_version": 3,
+  "name": "Twitter/X CDN Inline Video",
+  "version": "2.0.4",
+  "description": "Play video.twimg.com video links inline with header rewriting, a context menu, and an extension video player.",
+  "permissions": [
+    "contextMenus",
+    "declarativeNetRequest",
+    "downloads",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "host_permissions": [
+    "https://erozine.jp/*",
+    "https://www.erozine.jp/*",
+    "https://twidouga.net/*",
+    "https://www.twidouga.net/*",
+    "https://twivideo.net/*",
+    "https://*.twivideo.net/*",
+    "https://*.twimg.com/*",
+    "https://video.twimg.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Twitter/X CDN Inline Video"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://erozine.jp/*",
+        "https://www.erozine.jp/*",
+        "https://twidouga.net/*",
+        "https://www.twidouga.net/*",
+        "https://twivideo.net/*",
+        "https://*.twivideo.net/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "viewer.html",
+        "viewer.css",
+        "viewer.js"
+      ],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; media-src https://*.twimg.com https://video.twimg.com blob:; connect-src https://*.twimg.com https://video.twimg.com https://erozine.jp https://www.erozine.jp; img-src 'self' data: https://*.twimg.com; style-src 'self';"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "twimg_inline_rules",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  }
+}

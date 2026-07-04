@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Twitter/X Video Player</title>
+    <link rel="stylesheet" href="viewer.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="player-wrap" aria-label="Video player">
+        <video id="video" controls autoplay loop playsinline></video>
+      </section>
+      <section class="toolbar" aria-label="Video actions">
+        <button id="copy" type="button">复制链接</button>
+        <button id="open" type="button">打开源地址</button>
+      </section>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </main>
+    <script src="viewer.js"></script>
+  </body>
+</html>

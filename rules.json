@@ -1,0 +1,102 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "responseHeaders": [
+        {
+          "header": "content-disposition",
+          "operation": "set",
+          "value": "inline"
+        }
+      ]
+    },
+    "condition": {
+      "urlFilter": "||video.twimg.com/",
+      "resourceTypes": [
+        "main_frame",
+        "sub_frame",
+        "media",
+        "object",
+        "xmlhttprequest",
+        "other"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "responseHeaders": [
+        {
+          "header": "content-type",
+          "operation": "set",
+          "value": "video/mp4"
+        }
+      ]
+    },
+    "condition": {
+      "regexFilter": "^https://video\\.twimg\\.com/.*\\.mp4(\\?.*)?$",
+      "resourceTypes": [
+        "main_frame",
+        "sub_frame",
+        "media",
+        "object",
+        "xmlhttprequest",
+        "other"
+      ]
+    }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "responseHeaders": [
+        {
+          "header": "content-disposition",
+          "operation": "set",
+          "value": "inline"
+        }
+      ]
+    },
+    "condition": {
+      "regexFilter": "^https://[^/]*\\.twimg\\.com/.*\\.(mp4|m3u8)(\\?.*)?$",
+      "resourceTypes": [
+        "main_frame",
+        "sub_frame",
+        "media",
+        "object",
+        "xmlhttprequest",
+        "other"
+      ]
+    }
+  },
+  {
+    "id": 4,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "responseHeaders": [
+        {
+          "header": "content-type",
+          "operation": "set",
+          "value": "video/mp4"
+        }
+      ]
+    },
+    "condition": {
+      "regexFilter": "^https://[^/]*\\.twimg\\.com/.*\\.mp4(\\?.*)?$",
+      "resourceTypes": [
+        "main_frame",
+        "sub_frame",
+        "media",
+        "object",
+        "xmlhttprequest",
+        "other"
+      ]
+    }
+  }
+]
