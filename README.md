@@ -2,7 +2,7 @@
 
 一个用于 Chrome / Edge 的 Manifest V3 浏览器扩展。它会把部分 `video.twimg.com` / `*.twimg.com` 视频链接交给浏览器内联播放，并在支持站点里提供当前页面弹窗播放器，减少可播放媒体被浏览器误判为文件保存的情况。
 
-> 本项目与 X Corp. / Twitter、twivideo.net、twidouga.net、erozine.jp 没有从属、赞助、背书或合作关系。Twitter、X 以及相关站点名称归各自权利人所有。
+> 本项目与 X Corp. / Twitter 没有从属、赞助、背书或合作关系。Twitter、X 以及相关站点名称归各自权利人所有。
 > 如果准备公开分发或上架扩展商店，建议使用更中性的扩展名称和图标，避免让用户误以为本项目由相关平台官方提供或认可。
 
 ## 功能
@@ -10,8 +10,7 @@
 - 将 `video.twimg.com` 视频响应的 `Content-Disposition` 调整为 `inline`。
 - 为 `.mp4` 视频链接设置更适合浏览器播放的 `Content-Type: video/mp4`。
 - 在右键菜单中提供“内联播放媒体”入口。
-- 在 `twivideo.net`、`twidouga.net`、`erozine.jp` 页面内拦截可识别的视频链接点击，并在当前页面弹窗播放。
-- 对 `https://erozine.jp/x/a/...` 这类短链接，会先解析最终的 `video.twimg.com` / `*.twimg.com` 视频地址。
+- 对 `https://xxx.x/x/a/mHOXe` 这类短链接，会先解析最终的 `video.twimg.com` / `*.twimg.com` 视频地址。
 - 当浏览器把可播放媒体误当作保存任务时，扩展会尝试取消该保存动作并改用播放器打开；本项目不提供批量下载、归档或内容分发功能。
 - 支持在设置页添加自定义站点。自定义站点需要用户主动授权后才会启用。
 - 弹窗播放器支持上一条 / 下一条、播放结束后自动下一条或循环当前视频。
