@@ -7,9 +7,11 @@ const params = new URLSearchParams(location.search);
 const src = params.get("src");
 const error = params.get("error");
 const embed = params.get("embed") === "1";
+let autoNext = params.get("autoNext") === "1";
 
 if (embed) {
   document.body.classList.add("embed");
+  video.loop = !autoNext;
 }
 
 function setStatus(text) {
@@ -62,7 +64,20 @@ video.addEventListener("error", () => {
 });
 
 video.addEventListener("loadedmetadata", fitEmbeddedVideo);
+video.addEventListener("ended", () => {
+  if (embed && autoNext) {
+    window.parent.postMessage({ type: "twimgInlineEnded" }, "*");
+  }
+});
 window.addEventListener("resize", fitEmbeddedVideo);
+window.addEventListener("message", (event) => {
+  if (!embed || event.data?.type !== "twimgInlineSetAutoNext") {
+    return;
+  }
+
+  autoNext = Boolean(event.data.autoNext);
+  video.loop = !autoNext;
+});
 
 if (embed && playerWrap) {
   playerWrap.addEventListener("click", (event) => {

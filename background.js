@@ -145,10 +145,34 @@ function openViewer(url) {
   chrome.tabs.create({ url: viewerUrl });
 }
 
-function rememberPlaybackTab(tabId) {
+function buildNavigationPlaylist(currentOriginalUrl, currentResolvedUrl, playlist = []) {
+  const urls = [];
+
+  for (const value of Array.isArray(playlist) ? playlist : []) {
+    const url = extractCandidateUrl(value);
+    if (!url) {
+      continue;
+    }
+
+    const normalized = url === currentOriginalUrl ? currentResolvedUrl : url;
+    if (normalized && !urls.includes(normalized)) {
+      urls.push(normalized);
+    }
+  }
+
+  if (currentResolvedUrl && !urls.includes(currentResolvedUrl)) {
+    urls.push(currentResolvedUrl);
+  }
+
+  return urls;
+}
+
+function rememberPlaybackTab(tabId, playlist = [], originalUrl = null) {
   if (Number.isInteger(tabId)) {
     pendingPlaybackTab = {
       tabId,
+      playlist,
+      originalUrl,
       expiresAt: Date.now() + 30000
     };
   }
@@ -160,19 +184,19 @@ function consumePlaybackTab() {
     return null;
   }
 
-  const { tabId } = pendingPlaybackTab;
+  const context = pendingPlaybackTab;
   pendingPlaybackTab = null;
-  return tabId;
+  return context;
 }
 
-function sendOverlayMessage(tabId, url) {
+function sendOverlayMessage(tabId, url, playlist) {
   return new Promise((resolve) => {
     if (!Number.isInteger(tabId)) {
       resolve(false);
       return;
     }
 
-    chrome.tabs.sendMessage(tabId, { type: "showTwimgOverlay", url }, (response) => {
+    chrome.tabs.sendMessage(tabId, { type: "showTwimgOverlay", url, playlist }, (response) => {
       if (chrome.runtime.lastError) {
         resolve(false);
         return;
@@ -199,12 +223,14 @@ async function injectContentScript(tabId) {
   }
 }
 
-async function openInlineOrViewer(url, tabId) {
-  if (await sendOverlayMessage(tabId, url)) {
+async function openInlineOrViewer(url, tabId, playlist = [], originalUrl = url) {
+  const navigationPlaylist = buildNavigationPlaylist(originalUrl, url, playlist);
+
+  if (await sendOverlayMessage(tabId, url, navigationPlaylist)) {
     return;
   }
 
-  if (await injectContentScript(tabId) && await sendOverlayMessage(tabId, url)) {
+  if (await injectContentScript(tabId) && await sendOverlayMessage(tabId, url, navigationPlaylist)) {
     return;
   }
 
@@ -233,8 +259,8 @@ function closeFallbackSourceTab(tabId) {
   chrome.tabs.remove(tabId, () => void chrome.runtime.lastError);
 }
 
-function openSourceUrl(url, tabId) {
-  rememberPlaybackTab(tabId);
+function openSourceUrl(url, tabId, playlist = []) {
+  rememberPlaybackTab(tabId, playlist, url);
   chrome.tabs.create({ url, active: false }, (tab) => {
     if (tab?.id) {
       fallbackSourceTabs.add(tab.id);
@@ -286,12 +312,12 @@ async function resolveToTwimgUrl(url) {
   return null;
 }
 
-async function openResolvedVideo(url, tabId) {
+async function openResolvedVideo(url, tabId, playlist = []) {
   const resolved = await resolveToTwimgUrl(url);
   if (resolved) {
-    await openInlineOrViewer(resolved, tabId);
+    await openInlineOrViewer(resolved, tabId, playlist, url);
   } else if (parseErozineRedirectUrl(url)) {
-    openSourceUrl(url, tabId);
+    openSourceUrl(url, tabId, playlist);
   } else {
     openErrorViewer(url);
   }
@@ -319,11 +345,16 @@ chrome.downloads.onCreated.addListener((item) => {
   }
 
   chrome.downloads.cancel(item.id, async () => {
-    const tabId = consumePlaybackTab();
+    const playbackContext = consumePlaybackTab();
     for (const sourceTabId of [...fallbackSourceTabs]) {
       closeFallbackSourceTab(sourceTabId);
     }
-    openInlineOrViewer(url, tabId ?? await getActiveTabId());
+    openInlineOrViewer(
+      url,
+      playbackContext?.tabId ?? await getActiveTabId(),
+      playbackContext?.playlist ?? [],
+      playbackContext?.originalUrl ?? url
+    );
   });
 });
 
@@ -383,13 +414,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "resolveTwimgUrl") {
+    const url = extractCandidateUrl(message.url);
+    if (!url) {
+      sendResponse({ ok: false });
+      return;
+    }
+
+    resolveToTwimgUrl(url)
+      .then((resolved) => sendResponse({ ok: Boolean(resolved), url: resolved }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
   if (message?.type !== "openTwimgInline") {
     return;
   }
 
   const url = extractCandidateUrl(message.url);
   if (url) {
-    openResolvedVideo(url, sender.tab?.id).then(() => sendResponse({ ok: true }));
+    openResolvedVideo(url, sender.tab?.id, message.playlist).then(() => sendResponse({ ok: true }));
     return true;
   }
 

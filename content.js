@@ -1,6 +1,7 @@
 const TWIMG_HOST = "video.twimg.com";
 const EROZINE_HOSTS = new Set(["erozine.jp", "www.erozine.jp"]);
 const OVERLAY_ID = "__twimg_inline_video_overlay__";
+const AUTO_PLAY_NEXT_KEY = "autoPlayNext";
 let overlayCleanup = null;
 
 function parsePlayableUrl(value) {
@@ -25,6 +26,16 @@ function parsePlayableUrl(value) {
     return null;
   } catch {
     return null;
+  }
+}
+
+function isDirectVideoUrl(value) {
+  try {
+    const url = new URL(value, location.href);
+    return url.hostname === TWIMG_HOST
+      || (url.hostname.endsWith(".twimg.com") && /\.(mp4|m3u8)$/i.test(url.pathname));
+  } catch {
+    return false;
   }
 }
 
@@ -68,6 +79,59 @@ function findTwimgUrl(event) {
   return null;
 }
 
+function uniqueUrls(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function getAutoPlayNextSetting() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get({ [AUTO_PLAY_NEXT_KEY]: true }, (result) => {
+      if (chrome.runtime.lastError) {
+        resolve(true);
+        return;
+      }
+
+      resolve(Boolean(result[AUTO_PLAY_NEXT_KEY]));
+    });
+  });
+}
+
+function saveAutoPlayNextSetting(value) {
+  chrome.storage.local.set({ [AUTO_PLAY_NEXT_KEY]: value });
+}
+
+function collectPageVideoUrls(activeUrl) {
+  const selectors = [
+    "a[href]",
+    "video[src]",
+    "source[src]",
+    "img[src]",
+    "[data-url]",
+    "[data-href]",
+    "[data-video]",
+    "[data-video-url]",
+    "[data-src]",
+    "[data-target]"
+  ].join(",");
+  const urls = [];
+
+  for (const element of document.querySelectorAll(selectors)) {
+    for (const value of candidatesFromElement(element)) {
+      const url = parsePlayableUrl(value);
+      if (url) {
+        urls.push(url);
+      }
+    }
+  }
+
+  const playlist = uniqueUrls(urls);
+  if (activeUrl && !playlist.includes(activeUrl)) {
+    playlist.push(activeUrl);
+  }
+
+  return playlist;
+}
+
 function openInline(event) {
   if (event.defaultPrevented || event.button > 1) {
     return;
@@ -80,7 +144,11 @@ function openInline(event) {
 
   event.preventDefault();
   event.stopImmediatePropagation();
-  chrome.runtime.sendMessage({ type: "openTwimgInline", url });
+  chrome.runtime.sendMessage({
+    type: "openTwimgInline",
+    url,
+    playlist: collectPageVideoUrls(url)
+  });
 }
 
 function removeOverlay() {
@@ -92,8 +160,16 @@ function removeOverlay() {
   document.getElementById(OVERLAY_ID)?.remove();
 }
 
-function showOverlay(url) {
+async function showOverlay(url, playlist = []) {
   removeOverlay();
+
+  let urls = uniqueUrls(Array.isArray(playlist) ? playlist : []);
+  let currentIndex = urls.indexOf(url);
+  if (currentIndex === -1) {
+    urls.push(url);
+    currentIndex = urls.length - 1;
+  }
+  let autoPlayNext = await getAutoPlayNextSetting();
 
   const host = document.createElement("div");
   host.id = OVERLAY_ID;
@@ -162,10 +238,56 @@ function showOverlay(url) {
     }
 
     .side-close {
+      display: flex;
+      align-items: center;
       width: 100%;
       height: 100%;
       min-width: 0;
       cursor: pointer;
+    }
+
+    .side-close.left {
+      justify-content: flex-end;
+      padding-right: 14px;
+    }
+
+    .side-close.right {
+      justify-content: flex-start;
+      padding-left: 14px;
+    }
+
+    .nav-button {
+      position: fixed;
+      top: 50%;
+      z-index: 1;
+      width: 46px;
+      height: 56px;
+      font-size: 30px;
+      transform: translateY(-50%);
+    }
+
+    .nav-button.prev {
+      left: 16px;
+    }
+
+    .nav-button.next {
+      right: 16px;
+    }
+
+    .nav-button:hover {
+      transform: translateY(-50%) scale(1.02);
+    }
+
+    .nav-button:active,
+    .nav-button:disabled {
+      transform: translateY(-50%);
+    }
+
+    .mode-button {
+      width: auto;
+      min-width: 40px;
+      padding: 0 10px;
+      font-size: 13px;
     }
 
     iframe {
@@ -192,6 +314,26 @@ function showOverlay(url) {
         width: 100%;
         height: 86vh;
       }
+
+      .side-close.left,
+      .side-close.right {
+        padding: 0 6px;
+      }
+
+      .nav-button {
+        left: auto;
+        right: auto;
+        width: 38px;
+        height: 48px;
+      }
+
+      .nav-button.prev {
+        left: 10px;
+      }
+
+      .nav-button.next {
+        right: 10px;
+      }
     }
   `;
 
@@ -208,32 +350,178 @@ function showOverlay(url) {
   close.setAttribute("aria-label", "关闭");
   close.addEventListener("click", removeOverlay);
 
+  const endMode = document.createElement("button");
+  endMode.type = "button";
+  endMode.className = "mode-button";
+
   const stage = document.createElement("div");
   stage.className = "stage";
 
   const leftClose = document.createElement("div");
-  leftClose.className = "side-close";
+  leftClose.className = "side-close left";
   leftClose.title = "关闭";
-  leftClose.addEventListener("click", removeOverlay);
+  leftClose.addEventListener("click", (event) => {
+    if (event.target === leftClose) {
+      removeOverlay();
+    }
+  });
 
   const rightClose = document.createElement("div");
-  rightClose.className = "side-close";
+  rightClose.className = "side-close right";
   rightClose.title = "关闭";
-  rightClose.addEventListener("click", removeOverlay);
+  rightClose.addEventListener("click", (event) => {
+    if (event.target === rightClose) {
+      removeOverlay();
+    }
+  });
 
   const frame = document.createElement("iframe");
-  frame.src = chrome.runtime.getURL(`viewer.html?embed=1&src=${encodeURIComponent(url)}`);
   frame.allow = "autoplay; fullscreen";
   frame.title = "Twitter/X video player";
+
+  const prev = document.createElement("button");
+  prev.type = "button";
+  prev.className = "nav-button prev";
+  prev.textContent = "<";
+  prev.title = "Previous video";
+  prev.setAttribute("aria-label", "Previous video");
+
+  const next = document.createElement("button");
+  next.type = "button";
+  next.className = "nav-button next";
+  next.textContent = ">";
+  next.title = "Next video";
+  next.setAttribute("aria-label", "Next video");
+
+  let navigationToken = 0;
+  let resolving = false;
+
+  function viewerUrl(nextUrl, resolveError = false) {
+    const params = new URLSearchParams({
+      embed: "1",
+      src: nextUrl,
+      autoNext: autoPlayNext ? "1" : "0"
+    });
+    if (resolveError) {
+      params.set("error", "resolve");
+    }
+
+    return chrome.runtime.getURL(`viewer.html?${params.toString()}`);
+  }
+
+  function updateEndModeButton() {
+    endMode.textContent = autoPlayNext ? "Next" : "Loop";
+    endMode.title = autoPlayNext ? "End: play next video" : "End: loop current video";
+    endMode.setAttribute("aria-label", endMode.title);
+  }
+
+  function resolveVideoUrl(nextUrl) {
+    if (isDirectVideoUrl(nextUrl)) {
+      return Promise.resolve({ url: nextUrl, pending: false });
+    }
+
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: "resolveTwimgUrl", url: nextUrl }, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve({ url: null, pending: false });
+          return;
+        }
+
+        if (response?.ok && response.url) {
+          resolve({ url: response.url, pending: false });
+          return;
+        }
+
+        chrome.runtime.sendMessage({
+          type: "openTwimgInline",
+          url: nextUrl,
+          playlist: urls
+        });
+        resolve({ url: null, pending: true });
+      });
+    });
+  }
+
+  async function setFrameUrl(nextUrl) {
+    const token = ++navigationToken;
+    resolving = true;
+    updateNavButtons();
+
+    const resolved = await resolveVideoUrl(nextUrl);
+    if (token !== navigationToken) {
+      return;
+    }
+
+    resolving = false;
+    if (resolved.url) {
+      urls[currentIndex] = resolved.url;
+      frame.src = viewerUrl(resolved.url);
+    } else if (!resolved.pending) {
+      frame.src = viewerUrl(nextUrl, true);
+    }
+
+    updateNavButtons();
+  }
+
+  function updateNavButtons() {
+    const disabled = resolving || urls.length < 2;
+    prev.disabled = disabled;
+    next.disabled = disabled;
+  }
+
+  function moveVideo(offset) {
+    if (resolving || urls.length < 2) {
+      return;
+    }
+
+    currentIndex = (currentIndex + offset + urls.length) % urls.length;
+    setFrameUrl(urls[currentIndex]);
+    updateNavButtons();
+    frame.focus();
+  }
+
+  prev.addEventListener("click", (event) => {
+    event.stopPropagation();
+    moveVideo(-1);
+  });
+  next.addEventListener("click", (event) => {
+    event.stopPropagation();
+    moveVideo(1);
+  });
+  endMode.addEventListener("click", () => {
+    autoPlayNext = !autoPlayNext;
+    saveAutoPlayNextSetting(autoPlayNext);
+    updateEndModeButton();
+    frame.contentWindow?.postMessage({
+      type: "twimgInlineSetAutoNext",
+      autoNext: autoPlayNext
+    }, "*");
+  });
+
+  updateEndModeButton();
+  setFrameUrl(urls[currentIndex]);
+  updateNavButtons();
 
   const onKeyDown = (event) => {
     if (event.key === "Escape") {
       removeOverlay();
+    } else if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      moveVideo(-1);
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      moveVideo(1);
     }
   };
   const onMessage = (event) => {
-    if (event.source === frame.contentWindow && event.data?.type === "twimgInlineClose") {
+    if (event.source !== frame.contentWindow) {
+      return;
+    }
+
+    if (event.data?.type === "twimgInlineClose") {
       removeOverlay();
+    } else if (event.data?.type === "twimgInlineEnded" && autoPlayNext) {
+      moveVideo(1);
     }
   };
   document.addEventListener("keydown", onKeyDown, true);
@@ -243,7 +531,9 @@ function showOverlay(url) {
     window.removeEventListener("message", onMessage);
   };
 
-  bar.append(close);
+  bar.append(endMode, close);
+  leftClose.append(prev);
+  rightClose.append(next);
   stage.append(leftClose, frame, rightClose);
   backdrop.append(bar, stage);
   shadow.append(style, backdrop);
@@ -256,7 +546,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return;
   }
 
-  showOverlay(message.url);
+  showOverlay(message.url, message.playlist);
   sendResponse({ ok: true });
 });
 
